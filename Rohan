@@ -1,0 +1,81 @@
+import { useState } from "react";
+import Picker from "emoji-picker-react";
+
+const MessageInput = ({ 
+  message, 
+  setMessage, 
+  sendMessage, 
+  sendPrivate, 
+  tab, 
+  imagePreview, 
+  handleEmojiSelect, 
+  base64ConversionForImages 
+}) => {
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  return (
+    <div className="flex flex-col p-2 mt-2 border-t border-gray-500">
+      <div className="flex items-center relative bg-white border border-gray-300 rounded-lg w-full">
+        {/* Emoji Button */}
+        <button 
+          className="p-2 text-gray-500 hover:text-black" 
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        >
+          😀
+        </button>
+        
+        {/* Message Input */}
+        <input
+          className="flex-grow px-4 py-2 border-none focus:outline-none"
+          placeholder="Enter Message"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (tab === "CHATROOM") {
+                sendMessage();
+              } else {
+                sendPrivate();
+              }
+            }
+          }}
+        />
+
+        {/* File Upload */}
+        <label className="cursor-pointer">
+          <span className="p-2 text-gray-500 hover:text-black">📎</span>
+          <input 
+            type="file" 
+            className="hidden" 
+            onChange={base64ConversionForImages} 
+          />
+        </label>
+
+        {/* Send Button */}
+        <button
+          onClick={tab === "CHATROOM" ? sendMessage : sendPrivate}
+          className="p-2 text-gray-500 hover:text-black"
+        >
+          ➤
+        </button>
+      </div>
+
+      {/* Image Preview */}
+      {imagePreview && (
+        <div className="mt-2">
+          <img src={imagePreview} alt="Preview" width="50" />
+        </div>
+      )}
+
+      {/* Emoji Picker */}
+      {showEmojiPicker && (
+        <div className="absolute mt-12 z-10">
+          <Picker onEmojiClick={handleEmojiSelect} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MessageInput;
