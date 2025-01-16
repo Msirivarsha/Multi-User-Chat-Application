@@ -1,0 +1,94 @@
+/* Fullscreen container */
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
+/* Left section styles */
+.leftSide {
+  flex: 7; /* 70% of the width */
+  background-color: #f5f5f5; /* Light background */
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.leftSide .logo {
+  font-size: 24px;
+  font-weight: bold;
+  color: #000;
+}
+
+.leftSide .content h3 {
+  margin: 20px 0 5px;
+  font-size: 18px;
+}
+
+.leftSide .content p {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* Right section styles */
+.rightSide {
+  flex: 3; /* 30% of the width */
+  background-color: #ffffff; /* White background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.rightSide .loginWrapper {
+  width: 80%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.rightSide .loginWrapper h2 {
+  margin-bottom: 10px;
+  font-size: 24px;
+  color: #000;
+}
+
+.rightSide .loginWrapper p {
+  margin-bottom: 20px;
+  font-size: 16px;
+  color: #666;
+}
+
+.rightSide .loginWrapper form {
+  display: flex;
+  flex-direction: column;
+}
+
+.rightSide .loginWrapper form label {
+  margin-bottom: 5px;
+  text-align: left;
+  font-size: 14px;
+  color: #333;
+}
+
+.rightSide .loginWrapper form input {
+  margin-bottom: 15px;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.rightSide .loginWrapper form button {
+  padding: 10px;
+  font-size: 16px;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.rightSide .loginWrapper form button:hover {
+  background-color: #0056b3;
+}
