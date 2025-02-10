@@ -1,0 +1,1112 @@
+import React, { useEffect, useState } from "react";
+import "./HierarchyManager.css";
+import axios from "axios";
+// import { ToastContainer, toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import plus_icon from "../../../CommonAssests/Images/plus_icon.svg";
+import close_icon from "../../../CommonAssests/Images/close_icon.svg";
+import add_icon from "../../../CommonAssests/Icons/add_instance.png";
+import delete_icon from "../../../CommonAssests/Icons/delete_icon.png";
+import save_icon from "../../../CommonAssests/Icons/save-icon-folder.png";
+import submit_icon from "../../../CommonAssests/Icons/submit_icon.png";
+import cancel_icon from "../../../CommonAssests/Icons/cancel_icon.png";
+import instance_icon from "../../../CommonAssests/Icons/instance_icon.png";
+import arrowDownIcon from "../../../CommonAssests/Images/down_arrow.svg";
+import qs from "qs";
+import AlertModal from "./AlertModal";
+const HierarchyManager = ({ permissions }) => {
+  const [showAlert, setShowAlert] = useState(false);
+  const [showAlert2, setShowAlert2] = useState(false);
+  const [YesOrNo, setYesOrNo] = useState();
+  const [RemoveLevel, setRemoveLevel] = useState();
+  const [module, setModule] = useState(null);
+  const [moduleList, setModuleList] = useState([]);
+  const [tablesData, setTablesData] = useState({});
+  const [hierarchyTableData, setHierarchyTableData] = useState({});
+  const [basetables, setBaseTables] = useState([]);
+  const [hierarchyList, setHierarchyList] = useState([]);
+  const [hierarchyLevels, setHierarchyLevels] = useState([]);
+  const [columnNames, setColumnNames] = useState({});
+  const [hierarchyNames, setHierarchyNames] = useState({});
+  const [expandedRow, setExpandedRow] = useState([]);
+  const [expandedRow2, setExpandedRow2] = useState(null);
+  const [originalHierarchyNames, setOriginalHierarchyNames] = useState({});
+
+
+  const [hierarchy, setHierarchy] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing2, setIsEditing2] = useState();
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [editedValue, setEditedValue] = useState();
+  const [editedValue2, setEditedValue2] = useState();
+
+  const [isInputVisible, setIsInputVisible] = useState(false);
+  const [newHierarchyName, setNewHierarchyName] = useState("");
+
+  const [selectedLevel, setSelectedLevel] = useState("");
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const [openModules, setOpenModules] = useState({});
+  const [openModules2, setOpenModules2] = useState({});
+
+
+  const [savehiecounter, setSavehiecounter] = useState(0); //save hierrahcy
+  const [savelevelcounter, setSavelevelcounter] = useState(0);
+
+
+  const hasPermission = (action) => {
+    return permissions.some((perm) => perm[action] === true);
+  };
+
+
+  const getSystemParamsData = () => {
+    const url = process.env.REACT_APP_API_URL + "/getSystemParams";
+    axios
+      .get(url)
+      .then((res) => {
+        console.log("getSystemParams ", res.data);
+        const tablesdata = {};
+        const modules = res.data.map((e, i, ar) => {
+          tablesdata[e.Param_Name] = e.Param_Value.split(";");
+          return e.Param_Name;
+        });
+        console.log("converted system params data", tablesdata);
+        setTablesData(tablesdata);
+        setModuleList(modules);
+      })
+      .catch((err) => {
+        console.error("Error Fetching  SystemParams ", err);
+      });
+  };
+  useEffect(() => {
+    getSystemParamsData();
+  }, []);
+  useEffect(() => {
+    console.log("hierarchyTable DAta", hierarchyTableData);
+    console.log("hiearchyList", hierarchyList);
+    console.log("hierarchyLevels", hierarchyLevels);
+    console.log("columnNames List", columnNames);
+  }, [hierarchyTableData, hierarchyList, hierarchyLevels, columnNames]);
+  useEffect(() => {
+    console.log(tablesData[module]);
+    setBaseTables(tablesData[module]);
+  }, [module]);
+
+  const getHierarchies = () => {
+    const url = process.env.REACT_APP_API_URL + "/getHierarchies";
+    axios
+      .get(url)
+      .then((res) => {
+        console.log("getHierarchies ", res.data);
+        const hierarc = [];
+        const result = {};
+
+        res.data.forEach((element) => {
+          element.level_num = Number(element.level_num);
+          const {
+            module,
+            base_table,
+            hierarchy_name,
+            level_name,
+            hierarchy_level,
+            level_num,
+          } = element;
+
+          if (!hierarc.includes(hierarchy_name)) {
+            hierarc.push(hierarchy_name);
+          }
+          if (!result[module]) {
+            result[module] = {};
+          }
+          if (!result[module][base_table]) {
+            result[module][base_table] = {};
+          }
+          if (!result[module][base_table][hierarchy_name]) {
+            result[module][base_table][hierarchy_name] = [];
+          }
+
+          result[module][base_table][hierarchy_name].push({
+            level_name,
+            hierarchy_level,
+            level_num,
+          });
+        });
+
+        console.log("converted data", result);
+        setHierarchyTableData(result);
+        setOriginalHierarchyNames(result);
+        console.log("hierarchies from res.data", hierarc);
+        console.log(
+          "hierarchies from res.data",
+          Object.keys(result[module][expandedRow])
+        );
+      })
+      .catch((err) => {
+        console.error("Error Fetching Global Menu", err);
+      });
+  };
+  useEffect(() => {
+    getHierarchies();
+  }, []);
+  const getColumnNames = () => {
+    const url = process.env.REACT_APP_API_URL + "/getColumnNames";
+    console.log("basetables", basetables);
+    axios
+      .get(url, {
+        params: { tableList: basetables },
+        paramsSerializer: (params) => {
+          return qs.stringify(params, { arrayFormat: "repeat" });
+        },
+      })
+      .then((res) => {
+        console.log("getColumnNames", res.data);
+        setColumnNames(res.data);
+      })
+      .catch((err) => {
+        console.error("Error Fetching getColumnNames", err);
+      });
+  };
+  useEffect(() => {
+    if (basetables?.length > 0) {
+      getColumnNames();
+    }
+  }, [basetables]);
+
+
+  const handleRowClick = (e, ele) => {
+    if (expandedRow === ele) {
+      setExpandedRow(null);
+      setOpenModules((prev) => ({ ...prev, [ele]: false }));
+    } else {
+      setHierarchyList(Object.keys(hierarchyTableData?.[module]?.[ele] ?? {}));
+      setExpandedRow(ele);
+      setIsInputVisible(false);
+      setOpenModules((prev) => ({ ...prev, [ele]: true }));
+    }
+    // setExpandedRow(expandedRow === ele ? null : ele);
+    // setOpenModules((prevState) => ({
+    //   ...prevState,
+    //   [ele]: !prevState[ele],
+    // }));
+  };
+
+
+
+
+  
+  const handleAddClick = (e, ele) => {
+    if (expandedRow === ele) {
+      //
+    } else {
+      setHierarchyList(Object.keys(hierarchyTableData?.[module]?.[ele] ?? {}));
+      setExpandedRow(ele);
+      // setOpenModules((prev) => ({ ...prev, [ele]: true }));
+    }
+  };
+
+  // const handleRowClick2 = (e, hierarchy) => {
+  //   if (expandedRow2 === hierarchy) {
+  //     setExpandedRow2(null);
+  //     setShowColumnDropdown(false);
+  //   } else {
+  //     setHierarchyLevels(
+  //       hierarchyTableData?.[module]?.[expandedRow]?.[hierarchy] ?? []
+  //     );
+  //     setExpandedRow2(hierarchy);
+  //     setShowColumnDropdown(false);
+  //   }
+  //   console.log(hierarchyLevels);
+  // };
+
+
+  const handleRowClick2 = (e, hierarchy) => {
+    if (expandedRow2 === hierarchy) {
+      setExpandedRow2(null);
+      setShowColumnDropdown(false);
+      setOpenModules2(prevState => ({
+        ...prevState,
+        [hierarchy]: false
+      }));
+
+    } else {
+      setHierarchyLevels(
+        hierarchyTableData?.[module]?.[expandedRow]?.[hierarchy] ?? []
+      );
+      setExpandedRow2(hierarchy);
+      setShowColumnDropdown(false);
+      setOpenModules2(prevState => ({
+        ...prevState,
+        [hierarchy]: true
+      }));
+    }
+
+    console.log(hierarchyLevels);
+  };
+
+
+  const handleAddClick2 = (e, hierarchy) => {
+    if (expandedRow2 === hierarchy) {
+      // setExpandedRow2(null);
+      setShowColumnDropdown(false);
+    } else {
+      setHierarchyLevels(
+        hierarchyTableData?.[module]?.[expandedRow]?.[hierarchy] ?? []
+      );
+      setExpandedRow2(hierarchy);
+      setShowColumnDropdown(false);
+      // setOpenModules2(prevState => ({
+      //   ...prevState,
+      //   [hierarchy]: !prevState[hierarchy]
+      // }));
+    }
+    console.log(hierarchyLevels);
+  };
+
+  const handleChange = (e) => {
+    setModule(e.target.value);
+  };
+
+  const saveLevels = () => {
+    if (savelevelcounter <= 0) {
+      alert("No changes to save");
+      return;
+    }
+
+    console.log("callled savelevels");
+    const url = process.env.REACT_APP_API_URL + "/save";
+    console.log("url search", url);
+
+    const payload = {
+      module,
+      base_table: expandedRow,
+      hierarchyName: expandedRow2,
+      newHierarchyLevels: hierarchyLevels,
+    };
+    console.log("saveLevels payload", payload);
+    axios
+      .post(url, payload)
+      .then((response) => {
+        // alert(" saved successfully");
+        toast.success("levels saved successfully!");
+        getHierarchies();
+        setSavelevelcounter(0);
+        setSavehiecounter((prevCounter) => prevCounter + 1);
+
+      })
+      .catch((error) => {
+        console.error("Error while saving ", error);
+        toast.error("Failed to save levels. Please try again");
+      });
+  };
+
+  // const handleAddHierarchy = (modulep, baseTablep) => {
+  //   let uniqueString = "new";
+  //   setHierarchyList((prev) => {
+  //     const updated = [...prev];
+
+  //     let counter = 1;
+  //     while (updated.includes(uniqueString)) {
+  //       uniqueString = `${"new"}${counter}`;
+  //       counter++;
+  //     }
+  //     updated.push(uniqueString);
+  //     return updated;
+  //   });
+
+  //   setHierarchyTableData((prev) => {
+  //     const updated = { ...prev };
+
+  //     if (!updated[modulep]) {
+  //       updated[modulep] = {};
+  //     }
+  //     if (!updated[modulep][baseTablep]) {
+  //       updated[modulep][baseTablep] = {};
+  //     }
+  //     if (!updated[modulep][baseTablep][uniqueString]) {
+  //       updated[modulep][baseTablep][uniqueString] = [];
+  //     }
+  //     return updated;
+  //   });
+  // };
+
+  const handleAddHierarchy = (modulep, baseTablep, newHierarchyName) => {
+    setHierarchyList((prev) => {
+      const updated = [...prev];
+      let uniqueString = newHierarchyName || "new";
+      let counter = 1;
+      while (updated.includes(uniqueString)) {
+        uniqueString = `${newHierarchyName || "new"}${counter}`;
+        counter++;
+      }
+      updated.push(uniqueString);
+      return updated;
+    });
+
+    setHierarchyTableData((prev) => {
+      const updated = { ...prev };
+
+      if (!updated[modulep]) {
+        updated[modulep] = {};
+      }
+      if (!updated[modulep][baseTablep]) {
+        updated[modulep][baseTablep] = {};
+      }
+      if (!updated[modulep][baseTablep][newHierarchyName]) {
+        updated[modulep][baseTablep][newHierarchyName] = [];
+      }
+      return updated;
+    });
+    // Increment the change counter
+    setSavehiecounter((prevCounter) => prevCounter + 1);
+
+  };
+
+
+  const handleSaveHierarchy = () => {
+    if (savehiecounter <= 0) {
+      alert("No changes to save");
+      return;
+    }
+    console.log("callled save Hierarchy ");
+    const url = process.env.REACT_APP_API_URL + "/saveHierarchy";
+    console.log("url search", url);
+    const payload = {
+      module,
+      base_table: expandedRow,
+      hierarchies: hierarchyTableData?.[module]?.[expandedRow],   
+    };
+    console.log("handleSaveHierarchy payload", payload);
+    axios
+      .post(url, payload)
+      .then((response) => {
+       
+        getHierarchies();
+        toast.success(" changes saved successfully!");
+        setSavehiecounter(0);
+      })
+      .catch((error) => {
+        console.error("Error while saving ", error);
+        toast.error("Failed to save. Please try again.");
+      });
+
+  };
+
+  const removeLevel2 = (levelToRemove) => {
+    setHierarchyLevels((prev) => {
+      const updated = prev;
+      const index = updated.findIndex(
+        (level) =>
+          level.level_name === levelToRemove.level_name &&
+          level.hierarchy_level === levelToRemove.hierarchy_level
+      );
+      if (index !== -1) {
+        updated.splice(index, 1);
+      }
+      for (let i = 0; i < updated.length; i++) {
+        updated[i].level_num = (updated.length - i).toString();
+      }
+      return updated;
+    });
+    return "removed";
+  };
+
+  const handleRemoveLevel = (levelToRemove) => {
+
+    setHierarchyLevels((prev) => {
+      const updated = [...prev];
+      const index = updated.findIndex(
+        (level) =>
+          level.level_name === levelToRemove.level_name &&
+          level.hierarchy_level === levelToRemove.hierarchy_level
+      );
+      if (index !== -1) {
+        updated.splice(index, 1);
+      }
+      for (let i = 0; i < updated.length; i++) {
+        updated[i].level_num = Number(updated.length - i);
+      }
+      return updated;
+    });
+    setHierarchyTableData((prev) => {
+      const updated = { ...prev };
+      if (
+        updated[module] &&
+        updated[module][expandedRow] &&
+        updated[module][expandedRow][expandedRow2]
+      ) {
+        updated[module][expandedRow][expandedRow2] = updated[module][
+          expandedRow
+        ][expandedRow2].filter(
+          (level) =>
+            level.level_name !== levelToRemove.level_name &&
+            level.hierarchy_level !== levelToRemove.hierarchy_level
+        );
+      }
+      return updated;
+    });
+    setSavelevelcounter((prevCounter) => prevCounter + 1);
+    // setLevelChangeCounter((prevCounter) => prevCounter + 1);
+
+  };
+
+  const handleDoubleClick = (e, hierarchy) => {
+    setIsEditing(hierarchy);
+    setSavehiecounter((prevCounter) => prevCounter + 1);
+
+  };
+  const handleDoubleClick2 = (e, hierarchy, hierarchylevelp) => {
+    setIsEditing2(hierarchylevelp);
+    setSavelevelcounter((prevCounter) => prevCounter + 1);
+
+    // setLevelChangeCounter((prevCounter) => prevCounter + 1);
+  };
+
+  const handleInputChange = (e) => {
+    setEditedValue(e.target.value);
+  };
+  const handleInputChange2 = (e) => {
+    setEditedValue2(e.target.value);
+  };
+
+  const handleKeyPress = (e, modulep, baseTablep, hierarchyp) => {
+    if (e.key === "Enter") {
+      setIsEditing(null);
+      setHierarchyList((prev) => {
+        const updated = prev.map((level) => {
+          if (level === hierarchyp) {
+            return editedValue;
+          }
+          return level;
+        });
+        return updated;
+      });
+
+      setHierarchyTableData((prevData) => {
+        const updatedData = { ...prevData };
+        if (updatedData[modulep] && updatedData[modulep][baseTablep]) {
+          if (updatedData[modulep][baseTablep][hierarchyp]) {
+            updatedData[modulep][baseTablep][editedValue] =
+              updatedData[modulep][baseTablep][hierarchyp];
+            delete updatedData[modulep][baseTablep][hierarchyp];
+          }
+        }
+
+        return updatedData;
+      });
+      setEditedValue();
+    }
+  };
+
+  const handleKeyPress2 = (e, levelToChange) => {
+    if (e.key === "Enter") {
+      setIsEditing2(null);
+      setHierarchyLevels((prev) => {
+        const updated = [...prev].map((level) => {
+          if (level.hierarchy_level === levelToChange.hierarchy_level) {
+            level.level_name = editedValue2;
+            return level;
+          } else {
+            return level;
+          }
+        });
+        return updated;
+      });
+
+      setHierarchyTableData((prevData) => {
+        const updatedData = { ...prevData };
+        if (
+          updatedData[module] &&
+          updatedData[module][expandedRow] &&
+          updatedData[module][expandedRow][expandedRow2]
+        ) {
+          updatedData[module][expandedRow][expandedRow2].forEach((level) => {
+            if (level.hierarchy_level === levelToChange.hierarchy_level) {
+              level.level_name = editedValue2;
+            }
+          });
+        }
+
+        return prevData;
+      });
+      setEditedValue2();
+    }
+  };
+  const handleBlur = () => {
+    setIsEditing(null);
+  };
+  const handleBlur2 = () => {
+    setIsEditing2(null);
+  };
+  const handleAddLevel = () => {
+    setShowColumnDropdown(true);
+    // setSavelevelcounter((prevCounter) => prevCounter + 1);
+  };
+
+  const handleRemoveHierarchy = (hierarchy) => {
+
+    const updatedHierarchyList = hierarchyList.filter((h) => h !== hierarchy);
+    setHierarchyList(updatedHierarchyList);
+    const { [hierarchy]: _, ...rest } = hierarchyTableData[module][expandedRow];
+    setHierarchyTableData({
+      ...hierarchyTableData,
+      [module]: {
+        ...hierarchyTableData[module],
+        [expandedRow]: rest,
+      },
+    });
+
+    setSavehiecounter((prevCounter) => prevCounter + 1);
+
+  };
+  // const handleColumnChange = (e) => {
+  //   const newLevel = {
+  //     level_name: e.target.value,
+  //     hierarchy_level: e.target.value,
+  //     level_num: 1,
+  //   };
+
+  //   setSelectedLevel(e.target.value);
+  //   setShowColumnDropdown(false);
+  // };
+
+  const handleColumnChange = (e) => {
+    const newLevel = {
+      level_name: e.target.value,
+      hierarchy_level: e.target.value,
+      level_num: 1,
+    };
+
+    setSelectedLevel(e.target.value);
+    // setHierarchyLevels((prev) => {
+    //   const updatedLevels = prev.map((level) => ({
+    //     ...level,
+    //     level_num: Number(level.level_num) + 1,
+    //   }));
+    //   updatedLevels.push(newLevel);
+    //   return updatedLevels;
+    // });
+
+    // setHierarchyTableData((prev) => {
+    //   const updated = {
+    //     ...prev,
+    //   };
+    //   if (
+    //     updated[module] &&
+    //     updated[module][expandedRow] &&
+    //     updated[module][expandedRow][expandedRow2]
+    //   ) {
+    //     const existingLevels = updated[module][expandedRow][expandedRow2];
+    //     if (
+    //       !existingLevels.some(
+    //         (level) => level.hierarchy_level === newLevel.hierarchy_level
+    //       )
+    //     ) {
+    //       updated[module][expandedRow][expandedRow2] = [
+    //         ...updated[module][expandedRow][expandedRow2].map((level) => ({
+    //           ...level,
+    //           level_num: Number(level.level_num) + 1,
+    //         })),
+    //       ];
+    //       updated[module][expandedRow][expandedRow2].push(newLevel);
+    //     }
+    //   } else {
+    //     updated[module] = updated[module] || {};
+    //     updated[module][expandedRow] = updated[module][expandedRow] || {};
+    //     updated[module][expandedRow][expandedRow2] = [newLevel];
+    //   }
+    //   return updated;
+    // });
+    setShowColumnDropdown(false);
+  };
+
+  // const handleSubmit = () => {
+  //   if (selectedLevel && !hierarchyLevels.some(level => level.hierarchy_level === selectedLevel.hierarchy_level)) {
+  //     setHierarchyLevels([...hierarchyLevels, selectedLevel]); // Add to the hierarchy levels list
+  //     setIsSubmitted(true); // Indicate that the level has been added
+  //   }
+  // };
+
+  const handleSubmit = () => {
+
+    if (!selectedLevel) return;
+
+    const newLevel = {
+      level_name: selectedLevel,
+      hierarchy_level: selectedLevel,
+      level_num: 1,
+    };
+
+
+    // setHierarchyLevels((prev) => {
+    //   const updatedLevels = [...prev];
+    //   updatedLevels.push(newLevel);
+    //   return updatedLevels;
+    // });
+    setHierarchyLevels((prev) => {
+      const updatedLevels = prev.map((level) => ({
+        ...level,
+        level_num: Number(level.level_num) + 1,
+      }));
+      updatedLevels.push(newLevel);
+      return updatedLevels;
+    });
+
+    setHierarchyTableData((prev) => {
+      const updated = { ...prev };
+
+      if (updated[module] && updated[module][expandedRow] && updated[module][expandedRow][expandedRow2]) {
+        const existingLevels = updated[module][expandedRow][expandedRow2];
+        // Avoid duplicate levels
+        if (!existingLevels.some((level) => level.hierarchy_level === newLevel.hierarchy_level)) {
+          updated[module][expandedRow][expandedRow2] = [
+            ...updated[module][expandedRow][expandedRow2].map((level) => ({
+              ...level,
+              level_num: Number(level.level_num) + 1,
+            })),
+          ];
+          // updated[module][expandedRow][expandedRow2] = [
+          //   ...existingLevels,
+          //   newLevel,
+          // ];
+          updated[module][expandedRow][expandedRow2].push(newLevel);
+
+
+        }
+      } else {
+        updated[module] = updated[module] || {};
+        updated[module][expandedRow] = updated[module][expandedRow] || {};
+        updated[module][expandedRow][expandedRow2] = [newLevel];
+      }
+      return updated;
+    });
+    setSelectedLevel(null);
+    setSavelevelcounter((prevCounter) => prevCounter + 1);
+  };
+  const handleCancel = () => {
+    setSelectedLevel(null);
+    setIsSubmitted(false);
+  };
+
+//for first accordions
+ const [openAccord, setOpenAccord]= useState({});
+
+ const handleAccordClick = (ele, module, hierarchyTableData, accordionId) =>{
+  setHierarchyList(Object.keys(hierarchyTableData?.[module]?.[ele] ?? {}));
+  setExpandedRow((prev)=>{
+    const newExpandRows = {...prev};
+    if(newExpandRows[accordionId]===ele){
+      delete newExpandRows[accordionId];
+    }else{
+      newExpandRows[accordionId]=ele;
+    }
+    return newExpandRows;
+  })
+
+
+
+
+  setOpenAccord((prev)=> ({
+    ...prev,
+    [ele] : !prev[ele]
+  }));
+  
+};
+
+const [openAccordions, setOpenAccordions] = useState({});
+// for second accordions
+const handleAccordionClick = (hierarchy) => {
+  setOpenAccordions((prev) => ({
+    ...prev,
+    [hierarchy]: !prev[hierarchy] 
+  }));
+}
+
+
+
+
+  return (
+    <div className="hierarchy-main">
+      <div className="hierarchyManager" >
+        <div className="header-title">Hierarchy Manager</div>
+        <div className="insideHeader ">
+           <select className="inputField" value={module} onChange={(e) => {
+            handleChange(e);
+          }}>
+            <option hidden>Select a Module</option>
+            {moduleList !== undefined &&
+              moduleList.map((modu) => {
+                return <option value={modu}>
+                  {modu}
+                  </option>;
+              })}        
+          </select> 
+        </div>
+
+        <div className="diffhierarchy">
+         
+            {module &&
+              basetables && hierarchyList &&
+              basetables.map((ele, i) => {
+                return (
+                  <React.Fragment key={ele}>
+                    <img
+                      className={`accordion `}
+                      data-bs-toggle="collapse"
+                      aria-expanded={openAccord[ele] ? "true" : "false"}
+                      title="Click to view hierarchies"
+                      onClick={(e) => {
+                        handleAccordClick(ele)
+                      }}
+                      src={arrowDownIcon}
+                      alt="Toggle"
+                      style={{
+                        transform: openAccord[ele]
+                          ? "rotate(180deg)"
+                          : "rotate(0deg)",
+                      }}
+                    />
+                  
+                    <div className={`basetable ${expandedRow === ele ? "bd-botm" : ""}`}>
+                      {/* <div style={{ width: '5px', height: '25px', backgroundColor: 'rgb(25, 146, 194)', borderRadius: '10px' }}></div> */}
+                      <label className={`h5 modulename ${expandedRow === ele ? "expanded" : ""}`}>
+                        {ele}
+                      </label>
+                      <div className="H-buttongroup">
+                        <button
+                          className="hierarchyAdd"
+                          onClick={(e) => {
+                            if (hasPermission("create")) {
+                              setIsInputVisible(true);
+                              handleAddClick(e, ele);
+                            }
+                          }}
+                        >
+                          <img className="add_icon" src={add_icon} alt="add" />
+                          Add
+                        </button>
+                        <button
+                          className="hierarchySave"
+                          onClick={() => {
+                            handleSaveHierarchy(module, expandedRow);
+                          }}
+                        >
+                          <img className="save_icon" src={save_icon} alt="save" />
+                          Save
+                        </button>
+                        <button
+                          className="hierarchyDelete"
+                          onClick={(e) => {
+                            setShowAlert(true);
+                          }}
+                        >
+                          <img className="delete_icon" src={delete_icon} alt="delete" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                     
+                    {openAccord[ele] && expandedRow === ele && (
+                      <div className={`hierarchies ${expandedRow === ele ? "border" : ""}`} id="hierarchy-border">
+                        <div className="table-outer-layout">
+                          {isInputVisible && (
+                            <div className="add-hierarchy-input">
+                              <input
+                                type="text"
+                                placeholder="Enter Hierarchy Name"
+                                value={newHierarchyName}
+                                onChange={(e) => setNewHierarchyName(e.target.value)}
+                              />
+                              <button
+                                className="btn-submit"
+                                onClick={() => {
+                                  if (newHierarchyName) {
+                                    handleAddHierarchy(module, expandedRow, newHierarchyName);
+                                    setIsInputVisible(false);
+                                    setNewHierarchyName("");
+                                  }
+                                }}
+                              >
+                                <img src={submit_icon} alt="Submit" style={{ width: '15px', marginRight: '8px' }} />
+
+                                Submit
+                              </button>
+                              <button
+                                className="btn-cancel"
+                                onClick={() => {
+                                  setIsInputVisible(false);
+                                  setNewHierarchyName("");
+                                }}
+                              >
+                                <img src={cancel_icon} alt="Submit" style={{ width: '15px', marginRight: '8px' }} />
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Table for inner hierarchies */}
+                        {expandedRow === ele &&
+                          hierarchyList.map((hierarchy, i) => {
+                            return (
+                              <React.Fragment key={hierarchy}>
+                                <tr className="H-tablebody">
+                                  <td colSpan={2}>
+                                    <img
+                                      className="accordion2"
+                                      src={arrowDownIcon}
+                                      alt="accordion"
+                                      
+                                      onClick={() => handleAccordionClick(hierarchy)}
+                                      style={{
+                                        transform: openAccordions[hierarchy] ? "rotate(180deg)" : "rotate(0deg)",
+                                        marginLeft: "2px",
+                                      
+                                      }}
+                                    />
+
+                                    {/* right-offcanvas */}
+
+                                    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight" aria-labelledby="offcanvasRightLabel">
+                                      <div class="offcanvas-header">
+                                        <img className="instance_icon" src={instance_icon} alt="instance" />
+                                        <h5 id="offcanvasRightLabel">Add Level</h5>
+                                        <button
+                                          className="btn-3-1"
+                                          data-bs-dismiss="offcanvas"
+                                          onClick={() => {
+                                            saveLevels();
+                                          }}
+                                        >
+                                          Save Level
+                                        </button>
+
+                                        <button type="button" class="btn-closetext-reset" data-bs-dismiss="offcanvas" aria-label="Close">cancel</button>
+                                      </div>
+                                      <div className="offcanvas-body" id="off-body">
+                                        <p>Enter your fields here.</p>
+                                        <div className="H-inputcontainer">
+                                          <select
+                                            className="inputField"
+                                            onChange={(e) => {
+                                              handleColumnChange(
+                                                e
+                                              );
+                                            }}
+                                            value={selectedLevel || ""}
+                                          >
+                                            <option hidden>Select a Level</option>
+                                            {columnNames[expandedRow]
+                                              .filter(
+                                                (column) =>
+                                                  !hierarchyLevels.some((level) => level.hierarchy_level === column)
+                                              )
+                                              .map((colNam) => (
+                                                <option key={colNam} value={colNam}>
+                                                  {colNam}
+                                                </option>
+                                              ))}
+                                          </select>
+                                          <button
+                                            className="sub-btn"
+                                            onClick={() => {
+                                              handleSubmit();
+                                              // saveLevels();
+                                            }}
+                                            disabled={!selectedLevel}
+                                          >
+                                            <img src={submit_icon} alt="Submit" style={{ width: '15px', marginRight: '8px' }} />
+                                            Submit
+                                          </button>
+                                          <button className="cncl-btn" onClick={handleCancel}>
+                                            <img src={cancel_icon} alt="Cancel" style={{ width: '15px', marginRight: '8px' }} />
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {isEditing === hierarchy && hasPermission("update") ? (
+                                      <input
+                                        className="inputField"
+                                        type="text"
+                                        placeholder={hierarchy}
+                                        value={editedValue}
+                                        onChange={(e) => {
+                                          handleInputChange(e);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          handleKeyPress(e, module, expandedRow, hierarchy);
+                                        }}
+                                        onBlur={handleBlur}
+                                        autoFocus
+                                      />
+                                    ) : (
+                                      <label
+                                        className={`h5-hierarchy ${expandedRow2 === hierarchy ? "expanded2" : ""}`}
+                                        onDoubleClick={(e) => {
+                                          handleDoubleClick(e, hierarchy);
+                                        }}
+                                        onClick={(e) => {
+                                          handleRowClick2(e, hierarchy);
+                                        }}
+                                      >
+                                        {hierarchy}
+                                      </label>
+                                    )}
+                                    <img
+                                      className="plus_icon"
+                                      src={plus_icon}
+                                      alt="plus"
+                                      title="click here to add the levels"
+                                      data-bs-toggle="offcanvas"
+                                      data-bs-target="#offcanvasRight"
+                                      onClick={(e) => {
+                                        handleAddClick2(e, hierarchy);
+                                        handleAddLevel();
+                                      }}
+                                    />
+                                  </td>
+                                </tr>
+
+                                {/* Mapping Hierarchy Levels */}
+                                {/* {expandedRow2 === hierarchy && hierarchyLevels.length > 0 && ( */}
+                                {openAccordions[hierarchy] && (
+                                  <div className="table-wrap"> 
+                                  <table className="main-inner-table">
+                                    <thead className="innerthead">
+                                      <tr className="table-row"  >
+                                        <th className="table-head"> Hierarchy level </th>
+                                        <th className="table-head" >  Level name </th>
+                                        <th className="table-head"> Level Number </th>
+                                        <th className="table-head"> </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {expandedRow2 === hierarchy && hierarchyLevels.length > 0 &&
+                                        hierarchyLevels.map((val, hlindex, hlarr) => {
+                                          return (
+                                            <tr className="table-body" key={val.hierarchy_level}>
+                                              <td className="tableData">{val.hierarchy_level}</td>
+                                              <td className="tableData">
+                                                {isEditing2 === val.hierarchy_level && hasPermission("update") ? (
+                                                  <input
+                                                    className="inputField"
+                                                    type="text"
+                                                    placeholder={val.level_name}
+                                                    value={editedValue2}
+                                                    onChange={(e) => {
+                                                      handleInputChange2(e);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                      handleKeyPress2(e, val);
+                                                    }}
+                                                    onBlur={handleBlur2}
+                                                    autoFocus
+                                                  />
+                                                ) : (
+                                                  <label
+                                                    onDoubleClick={(e) => {
+                                                      handleDoubleClick2(e, hierarchy, val.hierarchy_level);
+                                                    }}
+                                                    title="Double-click to edit level name"
+                                                  >
+                                                    {val.level_name}
+                                                  </label>
+                                                )}
+                                              </td>
+                                              <td className="tableData">{val.level_num}
+                                              </td>
+                                              <td className="tableData" >
+                                                {hasPermission("delete") && (
+                                                  <img
+                                                    className="close"
+                                                    src={delete_icon}
+                                                    alt="closeicon"
+                                                    onClick={() => {
+                                                      setRemoveLevel(val);
+                                                      setShowAlert2(true);
+                                                    }}
+                                                  />
+                                                )}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                    </tbody>
+                                  </table>
+                                  </div>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+          
+        </div>
+
+
+
+
+        {
+          showAlert && (
+            <AlertModal
+              onYes={() => {
+                setYesOrNo(true);
+                handleRemoveHierarchy(expandedRow2);
+                setShowAlert(false);
+                // toast.success("click on save to save the changes");
+              }}
+              onNo={() => {
+                setYesOrNo(false);
+                setShowAlert(false);
+              }}
+              onClose={() => console.log("hii i am alert modal")}
+              onsuccess={true}
+              onfail={!false}
+            />
+          )
+        
+        }
+
+
+
+        {console.log("rendering yes or no", YesOrNo)}
+        {
+          showAlert2 && (
+            <AlertModal
+              onYes={() => {
+                console.log("removelevel modal", RemoveLevel);
+                handleRemoveLevel(RemoveLevel);
+                setShowAlert2(false);
+              }}
+              onNo={() => {
+                setYesOrNo(false);
+                setShowAlert2(false);
+              }}
+              onClose={() => console.log("hii i am alert modal22")}
+              onsuccess={true}
+              onfail={!false}
+            />
+          )
+        }
+      </div >
+      <ToastContainer
+        position="top-right"
+        autoClose={2000}
+        hideProgressBar
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+    </div>
+  );
+};
+export default HierarchyManager;
